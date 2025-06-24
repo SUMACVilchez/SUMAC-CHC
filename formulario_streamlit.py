@@ -4,7 +4,6 @@ import os, re, shutil, yagmail
 from datetime import datetime
 from zipfile import ZipFile
 
-# ------------------ CONFIGURACIÓN ------------------
 st.set_page_config(page_title="Formulario Huella de Carbono - SUMAC", layout="wide")
 os.makedirs("datos", exist_ok=True)
 os.makedirs("evidencias", exist_ok=True)
@@ -32,11 +31,12 @@ def es_email_valido(email):
 
 def enviar_correo(destinatario, asunto, cuerpo, archivos):
     remitente = "avilchez@sumacinc.com"
-    password = "xbna iizl vhta aync"  # contraseña generada en Gmail
+    password = "xbna iizl vhta aync"
     yag = yagmail.SMTP(user=remitente, password=password)
     yag.send(to=destinatario, subject=asunto, contents=cuerpo, attachments=archivos)
 
 st.title("Formulario de Huella de Carbono - SUMAC")
+
 if "entradas" not in st.session_state:
     st.session_state.entradas = {}
 
@@ -45,31 +45,33 @@ with st.form("form_empresa"):
     col1, col2 = st.columns(2)
     nombre = col1.text_input("Nombre de la empresa")
     ruc = col2.text_input("RUC o ID fiscal")
-    ruc_valido = ruc.isdigit()
-    if ruc and not ruc_valido:
-        st.error("El RUC debe contener solo números")
+    if ruc and not ruc.isdigit():
+        st.warning("El RUC debe ser numérico")
     pais = col1.selectbox("País", sorted(["Argentina", "Bolivia", "Chile", "Colombia", "Ecuador", "España", "México", "Paraguay", "Perú", "Uruguay", "Estados Unidos"]))
     responsable = col2.text_input("Responsable")
     email = st.text_input("Email del responsable")
     enviado = st.form_submit_button("Iniciar")
 
-if enviado and nombre and responsable and es_email_valido(email) and ruc_valido:
+if enviado and nombre and responsable and es_email_valido(email) and ruc.isdigit():
     st.success("Datos validados. Continúa llenando la información.")
     nombre_archivo = f"SUMAC_{nombre.strip().replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
-    for hoja, campos in estructura.items():
-        st.markdown(f"### Categoría: {hoja}")
-        with st.form(f"form_{hoja}"):
+    st.markdown("### Selecciona una categoría para llenar:")
+    seleccion = st.selectbox("Categoría", list(estructura.keys()))
+
+    if seleccion:
+        with st.form(f"form_{seleccion}"):
             datos = {}
-            for campo, opciones in campos.items():
+            for campo, opciones in estructura[seleccion].items():
                 if opciones:
-                    datos[campo] = st.selectbox(campo, opciones.split(","), key=f"{hoja}_{campo}")
+                    datos[campo] = st.selectbox(campo, opciones.split(","), key=f"{seleccion}_{campo}")
                 else:
-                    datos[campo] = st.text_input(campo, key=f"{hoja}_{campo}")
-            evidencias = st.file_uploader("Subir evidencias", accept_multiple_files=True, key=f"{hoja}_files")
-            enviar_fila = st.form_submit_button("Agregar entrada")
-            if enviar_fila:
-                st.session_state.entradas.setdefault(hoja, []).append({"datos": datos, "evidencias": evidencias})
+                    datos[campo] = st.text_input(campo, key=f"{seleccion}_{campo}")
+            evidencias = st.file_uploader("Subir evidencias", accept_multiple_files=True, key=f"{seleccion}_files")
+            guardar = st.form_submit_button("Agregar entrada")
+
+            if guardar:
+                st.session_state.entradas.setdefault(seleccion, []).append({"datos": datos, "evidencias": evidencias})
                 st.success("Entrada agregada.")
 
     if st.button("📤 Finalizar y Enviar"):
