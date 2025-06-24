@@ -32,7 +32,7 @@ def es_email_valido(email):
 
 def enviar_correo(destinatario, asunto, cuerpo, archivos):
     remitente = "avilchez@sumacinc.com"
-    password = "xbna iizl vhta aync"  # contraseña generada en Gmail (App Password)
+    password = "xbna iizl vhta aync"  # contraseña generada en Gmail
     yag = yagmail.SMTP(user=remitente, password=password)
     yag.send(to=destinatario, subject=asunto, contents=cuerpo, attachments=archivos)
 
@@ -47,11 +47,11 @@ with st.form("form_empresa"):
     ruc = col2.text_input("RUC o ID fiscal")
     ruc_valido = ruc.isdigit()
     if ruc and not ruc_valido:
-        st.error("⚠️ El RUC debe contener solo números")
+        st.error("El RUC debe contener solo números")
     pais = col1.selectbox("País", sorted(["Argentina", "Bolivia", "Chile", "Colombia", "Ecuador", "España", "México", "Paraguay", "Perú", "Uruguay", "Estados Unidos"]))
     responsable = col2.text_input("Responsable")
     email = st.text_input("Email del responsable")
-    enviado = st.form_submit_button("Iniciar", disabled=not ruc_valido)
+    enviado = st.form_submit_button("Iniciar")
 
 if enviado and nombre and responsable and es_email_valido(email) and ruc_valido:
     st.success("Datos validados. Continúa llenando la información.")
