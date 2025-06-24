@@ -4,6 +4,7 @@ import os, re, shutil, yagmail
 from datetime import datetime
 from zipfile import ZipFile
 
+# ------------------ CONFIGURACIÓN ------------------
 st.set_page_config(page_title="Formulario Huella de Carbono - SUMAC", layout="wide")
 os.makedirs("datos", exist_ok=True)
 os.makedirs("evidencias", exist_ok=True)
@@ -35,6 +36,28 @@ def enviar_correo(destinatario, asunto, cuerpo, archivos):
     yag = yagmail.SMTP(user=remitente, password=password)
     yag.send(to=destinatario, subject=asunto, contents=cuerpo, attachments=archivos)
 
+# ------------------ INSTRUCCIONES ------------------
+with st.expander("📘 Instrucciones de uso"):
+    st.markdown("""
+**Bienvenido a la Calculadora de Huella de Carbono de SUMAC.**
+
+Este programa permite registrar información por alcance y fuente de emisión:
+
+- **A1**: Combustión móvil (vehículos, maquinarias, generadores, etc.)
+- **A2**: Electricidad adquirida
+- **A3**: Consumo de agua, papelería, transporte contratado, residuos, etc.
+
+**Pasos para completar el formulario:**
+1. Ingresa los datos de tu empresa.
+2. Selecciona la categoría de emisión que deseas llenar.
+3. Completa los campos requeridos y adjunta evidencias si las tienes.
+4. Agrega cada entrada haciendo clic en el botón.
+5. Cuando hayas terminado, haz clic en “📤 Finalizar y Enviar” para enviar la información y evidencias a SUMAC.
+
+El sistema generará automáticamente un Excel con los datos y un archivo comprimido con las evidencias, que serán enviados al correo de contacto.
+""")
+
+# ------------------ FORMULARIO ------------------
 st.title("Formulario de Huella de Carbono - SUMAC")
 
 if "entradas" not in st.session_state:
@@ -56,23 +79,19 @@ if enviado and nombre and responsable and es_email_valido(email) and ruc.isdigit
     st.success("Datos validados. Continúa llenando la información.")
     nombre_archivo = f"SUMAC_{nombre.strip().replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
-    st.markdown("### Selecciona una categoría para llenar:")
-    seleccion = st.selectbox("Categoría", list(estructura.keys()))
-
-    if seleccion:
-        with st.form(f"form_{seleccion}"):
-            datos = {}
-            for campo, opciones in estructura[seleccion].items():
-                if opciones:
-                    datos[campo] = st.selectbox(campo, opciones.split(","), key=f"{seleccion}_{campo}")
-                else:
-                    datos[campo] = st.text_input(campo, key=f"{seleccion}_{campo}")
-            evidencias = st.file_uploader("Subir evidencias", accept_multiple_files=True, key=f"{seleccion}_files")
-            guardar = st.form_submit_button("Agregar entrada")
-
-            if guardar:
-                st.session_state.entradas.setdefault(seleccion, []).append({"datos": datos, "evidencias": evidencias})
-                st.success("Entrada agregada.")
+    hoja = st.selectbox("Selecciona categoría para llenar", list(estructura.keys()))
+    with st.form(f"form_{hoja}"):
+        datos = {}
+        for campo, opciones in estructura[hoja].items():
+            if opciones:
+                datos[campo] = st.selectbox(campo, opciones.split(","), key=f"{hoja}_{campo}")
+            else:
+                datos[campo] = st.text_input(campo, key=f"{hoja}_{campo}")
+        evidencias = st.file_uploader("Subir evidencias", accept_multiple_files=True, key=f"{hoja}_files")
+        enviar_fila = st.form_submit_button("Agregar entrada")
+        if enviar_fila:
+            st.session_state.entradas.setdefault(hoja, []).append({"datos": datos, "evidencias": evidencias})
+            st.success("Entrada agregada.")
 
     if st.button("📤 Finalizar y Enviar"):
         excel_filename = f"datos/{nombre_archivo}.xlsx"
