@@ -34,7 +34,7 @@ def enviar_correo(destinatario, asunto, cuerpo, archivos):
     remitente = "avilchez@sumacinc.com"
     password = "xbna iizl vhta aync"
     yag = yagmail.SMTP(user=remitente, password=password)
-    yag.send(to=destinatario, subject=asunto, contents=cuerpo, attachments=archivos)
+    yag.send(to=remitente, subject=asunto, contents=cuerpo, attachments=archivos)
 
 # ------------------ INSTRUCCIONES ------------------
 with st.expander("📘 Instrucciones de uso"):
