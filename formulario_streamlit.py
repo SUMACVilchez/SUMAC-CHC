@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import os, re, shutil, yagmail
+import os, re, yagmail
 from datetime import datetime
 from zipfile import ZipFile
 
@@ -9,25 +9,26 @@ st.set_page_config(page_title="Formulario Huella de Carbono - SUMAC", layout="wi
 os.makedirs("datos", exist_ok=True)
 os.makedirs("evidencias", exist_ok=True)
 
+# ------------------ ESTRUCTURA ------------------
 estructura = {
-    'A1_Vehículos_propios_móviles': {'Tipo de vehículo': 'Auto,Camioneta,Furgón,SUV,Motocicleta,Otro', 'Tipo de combustible': 'Diesel,Gasohol,GNV,GLP,Hibrído', 'Consumo anual': None, 'Unidad': 'Litros,Galones', 'Año': '2022,2023,2024'},
-    'A1_Generador_Electri_móvile': {'Tipo de vehículo': None, 'Tipo de combustible': 'Diesel,Gasohol,GNV,GLP,Hibrído,Eléctrico', 'Consumo anual': None, 'Unidad': 'Litros,Galones', 'Año': '2022,2023,2024'},
-    'A1_Maquinari_propios_móvile': {'Tipo de vehículo': 'Grúa,Escabadora,Montacarga', 'Tipo de combustible': 'Diesel,Gasohol,GNV,GLP,Hibrído,Eléctrico', 'Consumo anual': None, 'Unidad': 'Litros,Galones', 'Año': '2022,2023,2024'},
-    'A1_Equipos_estacionarios': {'Tipo de equipo': 'Elevador,Prensa,Calderas,Trituradora,Motobombas,Generador,Cocina', 'Tipo de combustible': 'Diesel,Gasohol,GNV,GLP,Hibrído', 'Consumo anual': None, 'Unidad': 'Litros,Galones', 'Año': '2022,2023,2024'},
-    'A1_Aire_acondicionado': {'Equipo': None, 'Tipo de gas': 'R-22,R44,R410,HCFC-22,R-410A,R-134a,R-407C,R-404A,R-32,R-600a', '¿Presentó fugas y/o recargas?': 'Fuga,Recarga', 'Capacidad': None, 'Unidad': 'kg', 'Cantidad de recargas': None},
-    'A1_Extintores': {'Equipo': None, '¿Presentó fugas y/o recargas?': 'Fuga,Recarga', 'Capacidad': None, 'Unidad': 'kg', 'Cantidad de recargas': None},
-    'A2_Electricidad': {'Consumo anual (KWh)': None, 'Año': '2022,2023,2024'},
+    'A1_Vehículos_propios_móviles': {'Tipo de vehículo': 'Auto,Camioneta,Furgón,SUV,Motocicleta,Otro', 'Tipo de combustible': 'Diesel,Gasohol,GNV,GLP,Hibrído', 'Consumo anual': 'numeric', 'Unidad': 'Litros,Galones', 'Año': '2022,2023,2024'},
+    'A1_Generador_Electri_móvile': {'Tipo de vehículo': None, 'Tipo de combustible': 'Diesel,Gasohol,GNV,GLP,Hibrído,Eléctrico', 'Consumo anual': 'numeric', 'Unidad': 'Litros,Galones', 'Año': '2022,2023,2024'},
+    'A1_Maquinari_propios_móvile': {'Tipo de vehículo': 'Grúa,Escabadora,Montacarga', 'Tipo de combustible': 'Diesel,Gasohol,GNV,GLP,Hibrído,Eléctrico', 'Consumo anual': 'numeric', 'Unidad': 'Litros,Galones', 'Año': '2022,2023,2024'},
+    'A1_Equipos_estacionarios': {'Tipo de equipo': 'Elevador,Prensa,Calderas,Trituradora,Motobombas,Generador,Cocina', 'Tipo de combustible': 'Diesel,Gasohol,GNV,GLP,Hibrído', 'Consumo anual': 'numeric', 'Unidad': 'Litros,Galones', 'Año': '2022,2023,2024'},
+    'A1_Aire_acondicionado': {'Equipo': None, 'Tipo de gas': 'R-22,R44,R410,HCFC-22,R-410A,R-134a,R-407C,R-404A,R-32,R-600a', '¿Presentó fugas y/o recargas?': 'Fuga,Recarga', 'Capacidad': 'numeric', 'Unidad': 'kg', 'Cantidad de recargas': 'numeric'},
+    'A1_Extintores': {'Equipo': None, '¿Presentó fugas y/o recargas?': 'Fuga,Recarga', 'Capacidad': 'numeric', 'Unidad': 'kg', 'Cantidad de recargas': 'numeric'},
+    'A2_Electricidad': {'Consumo anual (KWh)': 'numeric', 'Año': '2022,2023,2024'},
     'A3_Transporte__casa__trabajo': {'Alcance 3: Emisiones indirectas de GEI de productos usados por la organización': None},
-    'A3_Papelería': {'Descripción': None, 'Largo (cm)': None, 'Ancho (cm)': None, 'Gramaje (gr/m2)': None, 'Cantidad': None, 'Unidad': None},
-    'A3_Transporte_contratado': {'Tipo de vehículo': 'Bus,Van,Taxi,Otro', 'Tipo de combustible': 'Diesel,Gasolina,GNV,GLP,Otro', 'Consumo de combustible anual (litros)': None, 'Gastos por el servicio': None, 'Destino incial': None, 'Destino final': None, 'Kilómetros recorridos': None, 'Año': '2022,2023,2024'},
-    'A3_Consumo_de_agua': {'Uso': None, 'Consumo anual (m3)': None, 'Año': '2022,2023,2024'},
-    'A3_Materiales_Bien_y_Servicio': {'Tipo de bien y servicio': 'Bien adquirido,Bien capital,Servicio adquirido,Servicio capital', 'Descripción': None, 'Tipo de moneda': 'Peso argentino,Boliviano,Real,Peso chileno,Peso colombiano,Dólar,Guaraní,Sol,Peso uruguayo,Bolívar', 'Monto': None},
-    'A3_Residuos': {'Tipo de residuo sólidos': 'Peligrosos,No peligrosos', 'Clasificación': 'Madera,Papel,Cartón,Comida,Textiles,Jardines,Plástico,Residuos urbanos,Lodos tratados,Lodos no tratados,Lodos industriales', 'Cantidad total': None, 'Unidad': 'Kg,Tn', 'Año': '2022,2023,2024'},
-    'A3_Transporte_Residuos': {'Origen': None, 'Destino': None, 'Número de viajes anuales': None},
-    'A3_Consumo_de_electricidad_loca': {'Consumo anual (KWh)': None, 'Año': '2022,2023,2024'}
+    'A3_Papelería': {'Descripción': None, 'Largo (cm)': 'numeric', 'Ancho (cm)': 'numeric', 'Gramaje (gr/m2)': 'numeric', 'Cantidad': 'numeric', 'Unidad': None},
+    'A3_Transporte_contratado': {'Tipo de vehículo': 'Bus,Van,Taxi,Otro', 'Tipo de combustible': 'Diesel,Gasolina,GNV,GLP,Otro', 'Consumo de combustible anual (litros)': 'numeric', 'Gastos por el servicio': 'numeric', 'Destino incial': None, 'Destino final': None, 'Kilómetros recorridos': 'numeric', 'Año': '2022,2023,2024'},
+    'A3_Consumo_de_agua': {'Uso': None, 'Consumo anual (m3)': 'numeric', 'Año': '2022,2023,2024'},
+    'A3_Materiales_Bien_y_Servicio': {'Tipo de bien y servicio': 'Bien adquirido,Bien capital,Servicio adquirido,Servicio capital', 'Descripción': None, 'Tipo de moneda': 'Peso argentino,Boliviano,Real,Peso chileno,Peso colombiano,Dólar,Guaraní,Sol,Peso uruguayo,Bolívar', 'Monto': 'numeric'},
+    'A3_Residuos': {'Tipo de residuo sólidos': 'Peligrosos,No peligrosos', 'Clasificación': 'Madera,Papel,Cartón,Comida,Textiles,Jardines,Plástico,Residuos urbanos,Lodos tratados,Lodos no tratados,Lodos industriales', 'Cantidad total': 'numeric', 'Unidad': 'Kg,Tn', 'Año': '2022,2023,2024'},
+    'A3_Transporte_Residuos': {'Origen': None, 'Destino': None, 'Número de viajes anuales': 'numeric'},
+    'A3_Consumo_de_electricidad_loca': {'Consumo anual (KWh)': 'numeric', 'Año': '2022,2023,2024'}
 }
 
-
+# ------------------ FUNCIONES ------------------
 def es_email_valido(email):
     return re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email)
 
@@ -46,7 +47,7 @@ Este programa permite registrar información por alcance y fuente de emisión:
 
 - **A1**: Combustión móvil (vehículos, maquinarias, generadores, etc.)
 - **A2**: Electricidad adquirida
-- **A3**: Consumo de agua
+- **A3**: Consumo de agua, papelería, transporte contratado, residuos, etc.
 
 **Pasos para completar el formulario:**
 1. Ingresa los datos de tu empresa.
@@ -56,12 +57,15 @@ Este programa permite registrar información por alcance y fuente de emisión:
 5. Cuando hayas terminado, haz clic en “📤 Finalizar y Enviar” para enviar la información y evidencias a SUMAC.
 """)
 
-# ------------------ FORMULARIO ------------------
-st.title("Formulario de Huella de Carbono - SUMAC")
-
+# ------------------ ESTADO ------------------
+if "datos_empresa" not in st.session_state:
+    st.session_state.datos_empresa = {}
 if "entradas" not in st.session_state:
     st.session_state.entradas = {}
+if "categoria_actual" not in st.session_state:
+    st.session_state.categoria_actual = list(estructura.keys())[0]
 
+# ------------------ FORM EMPRESA ------------------
 with st.form("form_empresa"):
     st.subheader("Datos de la Empresa")
     col1, col2 = st.columns(2)
@@ -74,25 +78,38 @@ with st.form("form_empresa"):
     email = st.text_input("Email del responsable")
     enviado = st.form_submit_button("Iniciar")
 
-if enviado and nombre and responsable and es_email_valido(email) and ruc.isdigit():
-    st.success("Datos validados. Continúa llenando la información.")
-    nombre_archivo = f"SUMAC_{nombre.strip().replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+if enviado and nombre and ruc.isdigit() and responsable and es_email_valido(email):
+    st.session_state.datos_empresa = {
+        "Empresa": nombre,
+        "RUC": ruc,
+        "País": pais,
+        "Responsable": responsable,
+        "Email": email
+    }
+    st.success("Datos validados. Continúa con el registro.")
 
-    hoja = st.selectbox("Selecciona categoría para llenar", list(estructura.keys()))
+# ------------------ CATEGORÍAS ------------------
+if st.session_state.datos_empresa:
+    st.selectbox("Selecciona categoría para llenar", list(estructura.keys()), key="categoria_actual")
+
+    hoja = st.session_state.categoria_actual
     with st.form(f"form_{hoja}"):
+        st.subheader(f"Categoría: {hoja}")
         datos = {}
-        for campo, opciones in estructura[hoja].items():
-            if opciones:
-                datos[campo] = st.selectbox(campo, opciones.split(","), key=f"{hoja}_{campo}")
+        for campo, tipo in estructura[hoja].items():
+            if tipo == "numeric":
+                datos[campo] = st.number_input(campo, step=0.01, format="%.2f", key=f"{hoja}_{campo}")
+            elif tipo:
+                datos[campo] = st.selectbox(campo, tipo.split(","), key=f"{hoja}_{campo}")
             else:
                 datos[campo] = st.text_input(campo, key=f"{hoja}_{campo}")
         evidencias = st.file_uploader("Subir evidencias", accept_multiple_files=True, key=f"{hoja}_files")
-        enviar_fila = st.form_submit_button("Agregar entrada")
-        if enviar_fila:
+        if st.form_submit_button("Agregar entrada"):
             st.session_state.entradas.setdefault(hoja, []).append({"datos": datos, "evidencias": evidencias})
-            st.success("Entrada agregada.")
+            st.success("Entrada registrada.")
 
     if st.button("📤 Finalizar y Enviar"):
+        nombre_archivo = f"SUMAC_{st.session_state.datos_empresa['Empresa'].strip().replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         excel_filename = f"datos/{nombre_archivo}.xlsx"
         zip_filename = f"datos/{nombre_archivo}.zip"
         writer = pd.ExcelWriter(excel_filename, engine="openpyxl")
@@ -102,14 +119,12 @@ if enviado and nombre and responsable and es_email_valido(email) and ruc.isdigit
             if registros:
                 df = pd.DataFrame([r["datos"] for r in registros])
                 df.to_excel(writer, sheet_name=hoja[:31], index=False)
-                hoja_dir = f"evidencias/{hoja}"
-                os.makedirs(hoja_dir, exist_ok=True)
+                carpeta = f"evidencias/{hoja}"
+                os.makedirs(carpeta, exist_ok=True)
                 for i, reg in enumerate(registros):
-                    if reg["evidencias"]:
-                        for file in reg["evidencias"]:
-                            ruta = os.path.join(hoja_dir, f"{i+1}_{file.name}")
-                            with open(ruta, "wb") as f:
-                                f.write(file.read())
+                    for file in reg["evidencias"] or []:
+                        with open(os.path.join(carpeta, f"{i+1}_{file.name}"), "wb") as f:
+                            f.write(file.read())
         writer.close()
 
         with ZipFile(zip_filename, "w") as z:
@@ -120,7 +135,5 @@ if enviado and nombre and responsable and es_email_valido(email) and ruc.isdigit
                     z.write(path, arcname=os.path.relpath(path, "evidencias"))
         adjuntos.append(zip_filename)
 
-        enviar_correo("avilchez@sumacinc.com", "Formulario CHC recibido", f"Formulario enviado por: {responsable}", adjuntos)
+        enviar_correo("avilchez@sumacinc.com", "Formulario CHC recibido", f"Formulario enviado por: {st.session_state.datos_empresa['Responsable']}", adjuntos)
         st.success("Formulario enviado correctamente.")
-elif enviado:
-    st.error("Por favor completa todos los campos obligatorios correctamente.")
