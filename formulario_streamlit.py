@@ -27,6 +27,7 @@ estructura = {
     'A3_Consumo_de_electricidad_loca': {'Consumo anual (KWh)': None, 'Año': '2022,2023,2024'}
 }
 
+
 def es_email_valido(email):
     return re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email)
 
@@ -34,7 +35,7 @@ def enviar_correo(destinatario, asunto, cuerpo, archivos):
     remitente = "avilchez@sumacinc.com"
     password = "xbna iizl vhta aync"
     yag = yagmail.SMTP(user=remitente, password=password)
-    yag.send(to=remitente, subject=asunto, contents=cuerpo, attachments=archivos)
+    yag.send(to=destinatario, subject=asunto, contents=cuerpo, attachments=archivos)
 
 # ------------------ INSTRUCCIONES ------------------
 with st.expander("📘 Instrucciones de uso"):
@@ -45,7 +46,7 @@ Este programa permite registrar información por alcance y fuente de emisión:
 
 - **A1**: Combustión móvil (vehículos, maquinarias, generadores, etc.)
 - **A2**: Electricidad adquirida
-- **A3**: Consumo de agua, papelería, transporte contratado, residuos, etc.
+- **A3**: Consumo de agua
 
 **Pasos para completar el formulario:**
 1. Ingresa los datos de tu empresa.
@@ -53,8 +54,6 @@ Este programa permite registrar información por alcance y fuente de emisión:
 3. Completa los campos requeridos y adjunta evidencias si las tienes.
 4. Agrega cada entrada haciendo clic en el botón.
 5. Cuando hayas terminado, haz clic en “📤 Finalizar y Enviar” para enviar la información y evidencias a SUMAC.
-
-El sistema generará automáticamente un Excel con los datos y un archivo comprimido con las evidencias, que serán enviados al correo de contacto.
 """)
 
 # ------------------ FORMULARIO ------------------
@@ -100,15 +99,17 @@ if enviado and nombre and responsable and es_email_valido(email) and ruc.isdigit
         adjuntos = [excel_filename]
 
         for hoja, registros in st.session_state.entradas.items():
-            df = pd.DataFrame([r["datos"] for r in registros])
-            df.to_excel(writer, sheet_name=hoja[:31], index=False)
-            hoja_dir = f"evidencias/{hoja}"
-            os.makedirs(hoja_dir, exist_ok=True)
-            for i, reg in enumerate(registros):
-                for file in reg["evidencias"]:
-                    ruta = os.path.join(hoja_dir, f"{i+1}_{file.name}")
-                    with open(ruta, "wb") as f:
-                        f.write(file.read())
+            if registros:
+                df = pd.DataFrame([r["datos"] for r in registros])
+                df.to_excel(writer, sheet_name=hoja[:31], index=False)
+                hoja_dir = f"evidencias/{hoja}"
+                os.makedirs(hoja_dir, exist_ok=True)
+                for i, reg in enumerate(registros):
+                    if reg["evidencias"]:
+                        for file in reg["evidencias"]:
+                            ruta = os.path.join(hoja_dir, f"{i+1}_{file.name}")
+                            with open(ruta, "wb") as f:
+                                f.write(file.read())
         writer.close()
 
         with ZipFile(zip_filename, "w") as z:
