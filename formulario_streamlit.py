@@ -36,29 +36,25 @@ def enviar_correo(destinatario, asunto, cuerpo, archivos):
     yag = yagmail.SMTP(user=remitente, password=password)
     yag.send(to=destinatario, subject=asunto, contents=cuerpo, attachments=archivos)
 
-# ------------------ INSTRUCCIONES ------------------
+# ------------------ APP ------------------
+st.title("Formulario de Huella de Carbono - SUMAC")
+
 with st.expander("📘 Instrucciones de uso"):
     st.markdown("""
-**Bienvenido a la Calculadora de Huella de Carbono de SUMAC.**
+**Este programa registra información por alcance y fuente de emisión.**  
+La estructura se organiza así:
 
-Este programa permite registrar información por alcance y fuente de emisión:
+- **A1:** Combustión móvil (vehículos, maquinarias, equipos)
+- **A2:** Electricidad adquirida
+- **A3:** Consumo indirecto (papelería, agua, transporte, residuos, etc.)
 
-- **A1**: Combustión móvil (vehículos, maquinarias, generadores, etc.)
-- **A2**: Electricidad adquirida
-- **A3**: Consumo de agua, papelería, transporte contratado, residuos, etc.
-
-**Pasos para completar el formulario:**
-1. Ingresa los datos de tu empresa.
-2. Selecciona la categoría de emisión que deseas llenar.
-3. Completa los campos requeridos y adjunta evidencias si las tienes.
-4. Agrega cada entrada haciendo clic en el botón.
-5. Cuando hayas terminado, haz clic en “📤 Finalizar y Enviar” para enviar la información y evidencias a SUMAC.
-
-El sistema generará automáticamente un Excel con los datos y un archivo comprimido con las evidencias, que serán enviados al correo de contacto.
+**Pasos para usar:**
+1. Ingresa los datos de la empresa.
+2. Selecciona una categoría (pestaña) y llena los datos.
+3. Adjunta evidencias si aplica.
+4. Repite el paso 2 para varias categorías si lo deseas.
+5. Presiona **📤 Finalizar y Enviar** para completar.
 """)
-
-# ------------------ FORMULARIO ------------------
-st.title("Formulario de Huella de Carbono - SUMAC")
 
 if "entradas" not in st.session_state:
     st.session_state.entradas = {}
@@ -67,30 +63,30 @@ with st.form("form_empresa"):
     st.subheader("Datos de la Empresa")
     col1, col2 = st.columns(2)
     nombre = col1.text_input("Nombre de la empresa")
-    ruc = col2.text_input("RUC o ID fiscal")
-    if ruc and not ruc.isdigit():
-        st.warning("El RUC debe ser numérico")
+    ruc = col2.number_input("RUC o ID fiscal", step=1, format="%d")
     pais = col1.selectbox("País", sorted(["Argentina", "Bolivia", "Chile", "Colombia", "Ecuador", "España", "México", "Paraguay", "Perú", "Uruguay", "Estados Unidos"]))
     responsable = col2.text_input("Responsable")
     email = st.text_input("Email del responsable")
     enviado = st.form_submit_button("Iniciar")
 
-if enviado and nombre and responsable and es_email_valido(email) and ruc.isdigit():
+if enviado and nombre and responsable and es_email_valido(email):
     st.success("Datos validados. Continúa llenando la información.")
     nombre_archivo = f"SUMAC_{nombre.strip().replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
-    hoja = st.selectbox("Selecciona categoría para llenar", list(estructura.keys()))
-    with st.form(f"form_{hoja}"):
+    hoja_sel = st.selectbox("Selecciona categoría a llenar", list(estructura.keys()))
+    st.markdown(f"### Categoría: {hoja_sel}")
+
+    with st.form(f"form_{hoja_sel}"):
         datos = {}
-        for campo, opciones in estructura[hoja].items():
+        for campo, opciones in estructura[hoja_sel].items():
             if opciones:
-                datos[campo] = st.selectbox(campo, opciones.split(","), key=f"{hoja}_{campo}")
+                datos[campo] = st.selectbox(campo, opciones.split(","), key=f"{hoja_sel}_{campo}")
             else:
-                datos[campo] = st.text_input(campo, key=f"{hoja}_{campo}")
-        evidencias = st.file_uploader("Subir evidencias", accept_multiple_files=True, key=f"{hoja}_files")
+                datos[campo] = st.text_input(campo, key=f"{hoja_sel}_{campo}")
+        evidencias = st.file_uploader("Subir evidencias", accept_multiple_files=True, key=f"{hoja_sel}_files")
         enviar_fila = st.form_submit_button("Agregar entrada")
         if enviar_fila:
-            st.session_state.entradas.setdefault(hoja, []).append({"datos": datos, "evidencias": evidencias})
+            st.session_state.entradas.setdefault(hoja_sel, []).append({"datos": datos, "evidencias": evidencias})
             st.success("Entrada agregada.")
 
     if st.button("📤 Finalizar y Enviar"):
