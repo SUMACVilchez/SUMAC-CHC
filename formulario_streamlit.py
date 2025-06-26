@@ -70,7 +70,7 @@ with st.form("form_empresa"):
     ruc = col2.text_input("RUC o ID fiscal")
     if ruc and not ruc.isdigit():
         st.warning("El RUC debe ser numérico")
-    pais = col1.selectbox("País", sorted(["Elige el pais","Argentina", "Bolivia", "Chile", "Colombia", "Ecuador", "España", "México", "Paraguay", "Perú", "Uruguay", "Estados Unidos"]))
+    pais = col1.selectbox("País", sorted(["Argentina", "Bolivia", "Chile", "Colombia", "Ecuador", "España", "México", "Paraguay", "Perú", "Uruguay", "Estados Unidos"]))
     responsable = col2.text_input("Responsable")
     email = st.text_input("Email del responsable")
     enviado = st.form_submit_button("Iniciar")
