@@ -27,7 +27,6 @@ estructura = {
     'A3_Consumo_de_electricidad_loca': {'Consumo anual (KWh)': "numeric", 'Año': '2022,2023,2024'}
 }
 
-# FUNCIONES
 def es_email_valido(email):
     return re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email)
 
@@ -47,23 +46,23 @@ if "categoria_actual" not in st.session_state:
 
 # INSTRUCCIONES
 with st.expander("📘 Instrucciones de uso"):
-    st.markdown("""
-**Bienvenido a la Calculadora de Huella de Carbono de SUMAC.**
+    st.markdown("""**Bienvenido a la Calculadora de Huella de Carbono de SUMAC.**
 
 Este programa permite registrar información por alcance y fuente de emisión:
-- **A1**: Combustión móvil
-- **A2**: Electricidad adquirida
-- **A3**: Consumo de agua, residuos, transporte, materiales, etc.
+
+- **A1**: Combustión móvil  
+- **A2**: Electricidad adquirida  
+- **A3**: Agua, residuos, transporte, materiales, etc.
 
 **Pasos:**
-1. Completa los datos de tu empresa.
-2. Elige una categoría y completa los datos.
-3. Adjunta evidencias (opcional).
-4. Agrega cada entrada.
-5. Presiona "📤 Finalizar y Enviar".
+1. Completa los datos de tu empresa.  
+2. Selecciona una categoría y completa los datos.  
+3. Adjunta evidencias (opcional).  
+4. Presiona “Agregar entrada”.  
+5. Al terminar, haz clic en “📤 Finalizar y Enviar”.
 """)
 
-# FORMULARIO EMPRESA
+# FORM EMPRESA
 with st.form("form_empresa"):
     st.subheader("Datos de la Empresa")
     col1, col2 = st.columns(2)
@@ -78,12 +77,16 @@ with st.form("form_empresa"):
 
 if enviado and nombre and ruc.isdigit() and responsable and es_email_valido(email):
     st.session_state.datos_empresa = {
-        "Empresa": nombre, "RUC": ruc, "País": pais,
-        "Responsable": responsable, "Email": email
+        "Nombre de la empresa": nombre,
+        "RUC o ID fiscal": ruc,
+        "País": pais,
+        "Responsable": responsable,
+        "Email (opcional)": email,
+        "Año del inventario": datetime.now().year
     }
-    st.success("Datos validados.")
+    st.success("Datos validados correctamente.")
 
-# FORMULARIO CATEGORÍA
+# FORM CATEGORÍA
 if st.session_state.datos_empresa:
     st.selectbox("Selecciona categoría para llenar", list(estructura.keys()), key="categoria_actual")
     hoja = st.session_state.categoria_actual
@@ -99,13 +102,9 @@ if st.session_state.datos_empresa:
                 datos[campo] = st.text_input(campo, key=f"{hoja}_{campo}")
         evidencias = st.file_uploader("Subir evidencias", accept_multiple_files=True, key=f"{hoja}_files")
         if st.form_submit_button("Agregar entrada"):
-            st.session_state.entradas.setdefault(hoja, []).append({
-                "datos": datos,
-                "evidencias": evidencias
-            })
-            st.success("Entrada registrada.")
+            st.session_state.entradas.setdefault(hoja, []).append({"datos": datos, "evidencias": evidencias})
+            st.success("Entrada registrada correctamente.")
 
-    # BOTÓN FINAL
     if st.button("📤 Finalizar y Enviar"):
         nombre_archivo = f"SUMAC_{nombre.strip().replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         excel_filename = f"datos/{nombre_archivo}.xlsx"
@@ -113,13 +112,15 @@ if st.session_state.datos_empresa:
         writer = pd.ExcelWriter(excel_filename, engine="openpyxl")
         adjuntos = []
 
-        hojas_guardadas = 0
+        # Guardar datos de empresa en hoja "Datos"
+        datos_df = pd.DataFrame(list(st.session_state.datos_empresa.items()))
+        datos_df.to_excel(writer, sheet_name="Datos", index=False, header=False)
+
+        # Guardar entradas por hoja
         for hoja, registros in st.session_state.entradas.items():
             if registros:
                 df = pd.DataFrame([r["datos"] for r in registros])
                 df.to_excel(writer, sheet_name=hoja[:31], index=False)
-                hojas_guardadas += 1
-
                 carpeta = f"evidencias/{hoja}"
                 os.makedirs(carpeta, exist_ok=True)
                 for i, reg in enumerate(registros):
@@ -127,15 +128,11 @@ if st.session_state.datos_empresa:
                         with open(os.path.join(carpeta, f"{i+1}_{file.name}"), "wb") as f:
                             f.write(file.read())
 
-        if hojas_guardadas > 0:
-            writer.close()
-            adjuntos.append(excel_filename)
-        else:
-            st.warning("No hay datos para guardar en Excel.")
+        writer.close()
+        adjuntos.append(excel_filename)
 
         with ZipFile(zip_filename, "w") as z:
-            if hojas_guardadas > 0:
-                z.write(excel_filename, arcname=os.path.basename(excel_filename))
+            z.write(excel_filename, arcname=os.path.basename(excel_filename))
             for root, _, files in os.walk("evidencias"):
                 for f in files:
                     z.write(os.path.join(root, f), arcname=os.path.relpath(os.path.join(root, f), "evidencias"))
@@ -143,4 +140,3 @@ if st.session_state.datos_empresa:
         adjuntos.append(zip_filename)
         enviar_correo("avilchez@sumacinc.com", "Formulario CHC recibido", f"Formulario enviado por: {responsable}", adjuntos)
         st.success("Formulario enviado correctamente.")
-
